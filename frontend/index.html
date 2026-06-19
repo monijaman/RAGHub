@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAGHub — Chat with PDF</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #1e293b;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 600; color: #f1f5f9; }
+    header span { font-size: 0.8rem; color: #64748b; }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 280px;
+      background: #1e293b;
+      border-right: 1px solid #334155;
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .sidebar h2 { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .upload-box {
+      border: 2px dashed #334155;
+      border-radius: 8px;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-box:hover { border-color: #6366f1; }
+    .upload-box input { display: none; }
+    .upload-box .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .upload-box p { font-size: 0.8rem; color: #94a3b8; }
+
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #6366f1; color: white; width: 100%; }
+    .btn-danger  { background: #ef4444; color: white; font-size: 0.75rem; padding: 0.3rem 0.7rem; }
+
+    .doc-info {
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 0.8rem;
+      font-size: 0.8rem;
+    }
+    .doc-info .label { color: #64748b; }
+    .doc-info .value { color: #a5b4fc; word-break: break-all; }
+
+    .status {
+      font-size: 0.8rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .status.loading { background: #1e3a5f; color: #93c5fd; }
+    .status.success { background: #14532d; color: #86efac; }
+    .status.error   { background: #450a0a; color: #fca5a5; }
+
+    /* ── Chat area ── */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 0.8rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .message.user {
+      background: #4338ca;
+      color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+    .message.assistant {
+      background: #1e293b;
+      color: #e2e8f0;
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+    .message .sources {
+      margin-top: 0.6rem;
+      padding-top: 0.6rem;
+      border-top: 1px solid #334155;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    .source-tag {
+      display: inline-block;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      margin: 0.2rem 0.1rem;
+      cursor: pointer;
+    }
+    .source-tag:hover { border-color: #6366f1; color: #a5b4fc; }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+      gap: 0.5rem;
+    }
+    .empty-state .big-icon { font-size: 3rem; }
+
+    .input-area {
+      padding: 1rem 1.5rem;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      display: flex;
+      gap: 0.75rem;
+    }
+    .input-area input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 0.7rem 1rem;
+      color: #e2e8f0;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-area input:focus { border-color: #6366f1; }
+    .input-area input:disabled { opacity: 0.5; }
+    .input-area button { background: #6366f1; color: white; border: none; border-radius: 6px; padding: 0 1.2rem; cursor: pointer; font-size: 1.1rem; }
+    .input-area button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .typing { color: #64748b; font-style: italic; font-size: 0.85rem; padding: 0.5rem 1.5rem; }
+
+    /* Source modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.5rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .modal h3 { margin-bottom: 0.8rem; color: #a5b4fc; }
+    .modal pre { white-space: pre-wrap; font-size: 0.82rem; color: #94a3b8; line-height: 1.6; }
+    .modal .close-btn { float: right; background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>RAGHub</h1>
+    <span>Chat with your PDF using AI</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Sidebar: upload -->
+  <div class="sidebar">
+    <h2>Document</h2>
+
+    <div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)" />
+      <div class="icon">📄</div>
+      <p>Click to upload PDF</p>
+    </div>
+
+    <button class="btn btn-primary" id="uploadBtn" onclick="uploadPDF()" disabled>
+      Upload & Process
+    </button>
+
+    <div id="statusMsg" style="display:none"></div>
+
+    <div id="docInfo" style="display:none" class="doc-info">
+      <div class="label">File</div>
+      <div class="value" id="docName"></div>
+      <div class="label" style="margin-top:0.5rem">Document ID</div>
+      <div class="value" id="docId"></div>
+      <div class="label" style="margin-top:0.5rem">Stats</div>
+      <div class="value" id="docStats"></div>
+    </div>
+
+    <button class="btn btn-danger" id="clearBtn" onclick="clearHistory()" style="display:none">
+      Clear Chat History
+    </button>
+  </div>
+
+  <!-- Chat area -->
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="big-icon">💬</div>
+        <div>Upload a PDF to start chatting</div>
+      </div>
+    </div>
+    <div class="typing" id="typingIndicator" style="display:none">AI is thinking...</div>
+    <div class="input-area">
+      <input
+        type="text"
+        id="questionInput"
+        placeholder="Ask a question about your PDF..."
+        disabled
+        onkeydown="if(event.key==='Enter') sendQuestion()"
+      />
+      <button id="sendBtn" onclick="sendQuestion()" disabled>➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- Source modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="close-btn" onclick="document.getElementById('modalOverlay').classList.remove('open')">✕</button>
+    <h3 id="modalTitle">Source chunk</h3>
+    <pre id="modalContent"></pre>
+  </div>
+</div>
+
+<script>
+  let currentDocId = null;
+  let selectedFile = null;
+
+  function handleFileSelect(event) {
+    selectedFile = event.target.files[0];
+    if (selectedFile) {
+      document.getElementById('uploadBtn').disabled = false;
+      document.querySelector('.upload-box p').textContent = selectedFile.name;
+    }
+  }
+
+  function showStatus(message, type) {
+    const el = document.getElementById('statusMsg');
+    el.style.display = 'block';
+    el.className = `status ${type}`;
+    el.textContent = message;
+  }
+
+  async function uploadPDF() {
+    if (!selectedFile) return;
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true;
+    showStatus('Uploading & processing...', 'loading');
+
+    const form = new FormData();
+    form.append('file', selectedFile);
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+      currentDocId = data.doc_id;
+      showStatus('Ready!', 'success');
+
+      document.getElementById('docInfo').style.display = 'block';
+      document.getElementById('docName').textContent = data.filename;
+      document.getElementById('docId').textContent = data.doc_id;
+      document.getElementById('docStats').textContent =
+        `${data.pages} pages · ${data.chunks} chunks`;
+
+      document.getElementById('questionInput').disabled = false;
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('clearBtn').style.display = 'block';
+
+      clearMessages();
+      addMessage('assistant', `I've processed **${data.filename}** (${data.pages} pages, ${data.chunks} chunks). What would you like to know?`);
+
+    } catch (err) {
+      showStatus(err.message, 'error');
+      btn.disabled = false;
+    }
+  }
+
+  function clearMessages() {
+    const msgs = document.getElementById('messages');
+    msgs.innerHTML = '';
+    document.getElementById('emptyState') && msgs.removeChild(document.getElementById('emptyState'));
+  }
+
+  function addMessage(role, text, sources = []) {
+    const msgs = document.getElementById('messages');
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.style.display = 'none';
+
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+    div.textContent = text;
+
+    if (sources.length > 0) {
+      const sourceDiv = document.createElement('div');
+      sourceDiv.className = 'sources';
+      sourceDiv.textContent = 'Sources: ';
+      sources.forEach((s, i) => {
+        const tag = document.createElement('span');
+        tag.className = 'source-tag';
+        tag.textContent = `Page ${s.page}`;
+        tag.title = 'Click to view chunk';
+        tag.onclick = () => showSource(s, i + 1);
+        sourceDiv.appendChild(tag);
+      });
+      div.appendChild(sourceDiv);
+    }
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  async function sendQuestion() {
+    const input = document.getElementById('questionInput');
+    const question = input.value.trim();
+    if (!question || !currentDocId) return;
+
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('sendBtn').disabled = true;
+    document.getElementById('typingIndicator').style.display = 'block';
+
+    addMessage('user', question);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doc_id: currentDocId, question }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || 'Chat failed');
+
+      addMessage('assistant', data.answer, data.sources);
+
+    } catch (err) {
+      addMessage('assistant', `Error: ${err.message}`);
+    } finally {
+      input.disabled = false;
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('typingIndicator').style.display = 'none';
+      input.focus();
+    }
+  }
+
+  async function clearHistory() {
+    if (!currentDocId) return;
+    await fetch(`/api/chat/${currentDocId}/history`, { method: 'DELETE' });
+    clearMessages();
+    addMessage('assistant', 'Chat history cleared. Ask me anything about the document!');
+  }
+
+  function showSource(source, index) {
+    document.getElementById('modalTitle').textContent = `Source ${index} — Page ${source.page}`;
+    document.getElementById('modalContent').textContent = source.text;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal(event) {
+    if (event.target === document.getElementById('modalOverlay')) {
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+  }
+</script>
+</body>
+</html>

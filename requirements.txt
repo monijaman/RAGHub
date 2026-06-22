@@ -7,10 +7,10 @@ python-multipart==0.0.9        # required for file uploads in FastAPI
 pypdf==4.2.0                   # extract text from PDF pages
 
 # ── AI / Embeddings / LLM ─────────────────────────────────────────────────────
-openai==1.35.0                 # OpenAI embeddings + GPT chat completions
+openai==2.43.0                 # OpenAI embeddings + GPT chat completions
 
 # ── Vector Database ───────────────────────────────────────────────────────────
-chromadb==0.5.0                # local vector DB — stores embeddings on disk
+chromadb==1.5.9                # local vector DB — stores embeddings on disk
 
 # ── Data Validation ───────────────────────────────────────────────────────────
 pydantic==2.7.4
